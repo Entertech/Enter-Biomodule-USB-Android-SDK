@@ -239,7 +239,9 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
                         } else {
                             var finalString = lastPackage + formatData
                             lastPackage = ""
-                            parseHeart(finalString)
+                            if (finalString.length == HEART_PACKAGE_LENGTH && isHeadCorrect(finalString) && isTailCorrect(finalString)) {
+                                parseHeart(finalString)
+                            }
                         }
                     }
                     //解析一个包是部分心率数据加完整脑波数据包
