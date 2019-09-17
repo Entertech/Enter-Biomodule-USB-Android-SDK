@@ -99,4 +99,10 @@ log.d("开始采集指令是否下发成功",result)
 boolean result = enterBiomoduleUsbManager.stopCollection();
 log.d("停止采集指令是否下发成功",result)
 ```
+## 数据说明
+
+**佩戴检测对应关系**
+
+![佩戴检测数据说明](https://github.com/Entertech/Enter-Biomodule-USB-Android-SDK/blob/master/image/%E4%BD%A9%E6%88%B4%E6%A3%80%E6%B5%8B%E8%AF%B4%E6%98%8E.png)
+
 
