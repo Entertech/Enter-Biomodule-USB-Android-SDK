@@ -1,4 +1,4 @@
-# Biomodule USB SDK [![Download](https://api.bintray.com/packages/hzentertech/maven/biomoduleusb/images/download.svg?version=1.0.0-alpha)](https://bintray.com/hzentertech/maven/biomoduleusb/1.0.0-alpha/link)
+# Biomodule USB SDK [![Download](https://api.bintray.com/packages/hzentertech/maven/biomoduleusb/images/download.svg?version=1.0.0)](https://bintray.com/hzentertech/maven/biomoduleusb/1.0.0/link)
 
 ## 简介
 
@@ -9,7 +9,7 @@
 在module的build.gradle文件中添加如下依赖：
 
 ```groovy
-implementation 'cn.entertech:biomoduleusb:1.0.0-alpha'
+implementation 'cn.entertech:biomoduleusb:1.0.0'
 ```
 
 在项目根目录的build.gradle文件中添加如下依赖：
