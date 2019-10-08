@@ -10,8 +10,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
-import cn.entertech.sdk.StringUtils.hexSringToBytes
-import cn.entertech.sdk.StringUtils.toHexString
+import cn.entertech.sdk.StringUtils.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -299,12 +298,12 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
 
     private fun parseHeart(data: String) {
         var heartHexString = getEffectiveHeartData(data)
-        var heart = hexSringToBytes(heartHexString)[0].toInt()
+        var heart = byte2Unchart(hexSringToBytes(heartHexString)[0])
         heartRateDataListeners.forEach {
             it.invoke(heart)
         }
-        var contactHexStrig = getEffectiveContactData(data)
-        var contact = hexSringToBytes(contactHexStrig)[0].toInt()
+        var contactHexString = getEffectiveContactData(data)
+        var contact = byte2Unchart(hexSringToBytes(contactHexString)[0])
         contactListeners.forEach {
             it.invoke(contact)
         }

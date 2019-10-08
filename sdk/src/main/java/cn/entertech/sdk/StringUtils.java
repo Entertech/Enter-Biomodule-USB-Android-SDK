@@ -37,4 +37,9 @@ public class StringUtils {
         return bytes;
     }
 
+
+    public static int byte2Unchart(byte data) {
+        return (data & 0xff);
+    }
+
 }
