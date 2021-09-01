@@ -9,10 +9,6 @@ interface IManager {
 
     fun onOpenDevice()
 
-    fun startCollection(): Boolean
-
-    fun stopCollection(): Boolean
-
     fun addBrainDataListener(listener: (ByteArray) -> Unit)
 
     fun removeBrainDataListener(listener: (ByteArray) -> Unit)
@@ -21,7 +17,5 @@ interface IManager {
 
     fun removeContactDataListener(listener: (Int) -> Unit)
 
-    fun addHeartRateDataListener(listener: (Int) -> Unit)
 
-    fun removeHeartRateDataListener(listener: (Int) -> Unit)
 }

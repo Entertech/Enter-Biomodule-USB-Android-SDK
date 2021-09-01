@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.*
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import cn.entertech.sdk.StringUtils.*
@@ -15,7 +14,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class EnterBiomoduleUsbManager(private var context: Context) : IManager {
+class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var singleThreadExecutor: ExecutorService? = null
     private var mUsbDeviceConnection: UsbDeviceConnection? = null
     private var mUsbEndpointOut: UsbEndpoint? = null
@@ -28,7 +27,6 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
 
     private val brainDataListeners = CopyOnWriteArrayList<(ByteArray) -> Unit>()
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
-    private val heartRateDataListeners = CopyOnWriteArrayList<(Int) -> Unit>()
 
     init {
         mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
@@ -41,27 +39,22 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
         private const val ACTION_DEVICE_PERMISSION = "actionDevicePermission"
         private const val DEVICE_PRODUCT_ID = 60000
         private const val DEVICE_VENDOR_ID = 4292
-        private const val COMMAND_START_BRAIN_COLLECTION = "01"
-        private const val COMMAND_STOP_BRAIN_COLLECTION = "02"
-        private const val BRAIN_PACKAGE_LENGTH = 29 * 2
-        private const val HEART_PACKAGE_LENGTH = 13 * 2
-        private const val PACKAGE_FLAG_HEAD = "BBBBBB"
-        private const val PACKAGE_FLAG_TAIL = "FFFFFF"
-        private const val PACKAGE_FLAG_BRAIN = "1D"
-        private const val PACKAGE_FLAG_HEART = "0D"
+        private const val BRAIN_PACKAGE_LENGTH = 7
+        private const val PACKAGE_FLAG_HEAD = "E"
+        private const val DATA_CONTACT_BAD = "ffffff"
 
         @Volatile
-        var mEnterBiomoduleUsbManager: EnterBiomoduleUsbManager? = null
+        var mEnterAutomotiveUsbManager: EnterAutomotiveUsbManager? = null
 
-        fun getInstance(context: Context): EnterBiomoduleUsbManager {
-            if (mEnterBiomoduleUsbManager == null) {
-                synchronized(EnterBiomoduleUsbManager::class.java) {
-                    if (mEnterBiomoduleUsbManager == null) {
-                        mEnterBiomoduleUsbManager = EnterBiomoduleUsbManager(context)
+        fun getInstance(context: Context): EnterAutomotiveUsbManager {
+            if (mEnterAutomotiveUsbManager == null) {
+                synchronized(EnterAutomotiveUsbManager::class.java) {
+                    if (mEnterAutomotiveUsbManager == null) {
+                        mEnterAutomotiveUsbManager = EnterAutomotiveUsbManager(context)
                     }
                 }
             }
-            return mEnterBiomoduleUsbManager!!
+            return mEnterAutomotiveUsbManager!!
         }
     }
 
@@ -151,14 +144,6 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
         }
     }
 
-    override fun startCollection(): Boolean {
-        return writeCommandToUsb(COMMAND_START_BRAIN_COLLECTION)
-    }
-
-    override fun stopCollection(): Boolean {
-        return writeCommandToUsb(COMMAND_STOP_BRAIN_COLLECTION)
-    }
-
     override fun addBrainDataListener(listener: (ByteArray) -> Unit) {
         brainDataListeners.add(listener)
     }
@@ -174,15 +159,6 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
     override fun removeContactDataListener(listener: (Int) -> Unit) {
         contactListeners.remove(listener)
     }
-
-    override fun addHeartRateDataListener(listener: (Int) -> Unit) {
-        heartRateDataListeners.add(listener)
-    }
-
-    override fun removeHeartRateDataListener(listener: (Int) -> Unit) {
-        heartRateDataListeners.remove(listener)
-    }
-
 
     private inner class UsbPermissionReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -216,76 +192,41 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
             val bytes = ByteArray(mUsbEndpointIn!!.maxPacketSize)
             val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 0)
             if (ret > 0) {
-                val data = toHexString(bytes)
-                mMainHandler.post {
-                    var formatData = removeLastZero(data)
-                    //解析一个包正好是一个脑波数据包
-                    if (formatData.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(formatData) && isTailCorrect(formatData)) {
-                        parseBrain(formatData)
-                    }
-                    //解析一个包正好是一个心率数据包
-                    if (formatData.length == HEART_PACKAGE_LENGTH && isHeadCorrect(formatData) && isTailCorrect(formatData)) {
-                        parseHeart(formatData)
-                    }
-                    //解析一个包正好是一个心率数据包加脑波数据包
-                    if (formatData.length == (BRAIN_PACKAGE_LENGTH + HEART_PACKAGE_LENGTH) && isHeadCorrect(formatData) && isTailCorrect(formatData)) {
-                        parseBrainAndHeart(formatData)
-                    }
-                    //解析一个心率数据包被分割的情况
-                    if (formatData.length < HEART_PACKAGE_LENGTH) {
-                        if (lastPackage == "") {
-                            lastPackage = formatData
-                        } else {
-                            var finalString = lastPackage + formatData
-                            lastPackage = ""
-                            if (finalString.length == HEART_PACKAGE_LENGTH && isHeadCorrect(finalString) && isTailCorrect(finalString)) {
-                                parseHeart(finalString)
-                            }
+                var data = String(bytes)
+                var stringData = data.replace(String(ByteArray(1){0x00}),"")
+                var stringDataArray = stringData.split("\r\n")
+                stringDataArray.forEach {
+                    mMainHandler.post {
+                        //解析一个包正好是一个脑波数据包
+                        if (it.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(it)) {
+                            parseBrain(it)
                         }
-                    }
-                    //解析一个包是部分心率数据加完整脑波数据包
-                    if (formatData.length in (HEART_PACKAGE_LENGTH + 1) until (BRAIN_PACKAGE_LENGTH + HEART_PACKAGE_LENGTH)) {
-                        if (lastPackage != "") {
-                            var finalString = lastPackage + formatData
-                            lastPackage = ""
-                            if (finalString.length == (BRAIN_PACKAGE_LENGTH + HEART_PACKAGE_LENGTH) && isHeadCorrect(finalString) && isTailCorrect(finalString)) {
-                                parseBrainAndHeart(finalString)
+                        //解析一个数据包被分割的情况
+                        if (it.length < BRAIN_PACKAGE_LENGTH) {
+                            if (lastPackage == "") {
+                                lastPackage = it
+                            } else {
+                                var finalString = lastPackage + it
+                                lastPackage = ""
+                                if (finalString.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(finalString)) {
+                                    parseBrain(finalString)
+                                }
                             }
                         }
                     }
                 }
+
             }
         }
     }
 
-    private fun removeLastZero(hexString: String): String {
-        var data = hexString
-        return if (data.substring(data.length - 1, data.length) == "0") {
-            data = hexString.substring(0, data.length - 1)
-            removeLastZero(data)
-        } else {
-            data
-        }
-    }
 
     private fun isHeadCorrect(data: String): Boolean {
-        return data.length > 6 && data.substring(0, 6) == PACKAGE_FLAG_HEAD
-    }
-
-    private fun isTailCorrect(data: String): Boolean {
-        return data.length > 6 && data.substring(data.length - 6, data.length) == PACKAGE_FLAG_TAIL
+        return data.length >= 1 && data.substring(0, 1) == PACKAGE_FLAG_HEAD
     }
 
     private fun getEffectiveBrainData(data: String): String {
-        return data.substring(10, 50)
-    }
-
-    private fun getEffectiveHeartData(data: String): String {
-        return data.substring(14, 16)
-    }
-
-    private fun getEffectiveContactData(data: String): String {
-        return data.substring(16, 18)
+        return data.substring(1, 7)
     }
 
     private fun parseBrain(data: String) {
@@ -294,28 +235,19 @@ class EnterBiomoduleUsbManager(private var context: Context) : IManager {
         brainDataListeners.forEach {
             it.invoke(brainBytes)
         }
+        parseContact(effectiveBrainData)
     }
 
-    private fun parseHeart(data: String) {
-        var heartHexString = getEffectiveHeartData(data)
-        var heart = byte2Unchart(hexSringToBytes(heartHexString)[0])
-        heartRateDataListeners.forEach {
-            it.invoke(heart)
-        }
-        var contactHexString = getEffectiveContactData(data)
-        var contact = byte2Unchart(hexSringToBytes(contactHexString)[0])
-        contactListeners.forEach {
-            it.invoke(contact)
+    private fun parseContact(data:String){
+        if (data == DATA_CONTACT_BAD) {
+            contactListeners.forEach {
+                it.invoke(0)
+            }
+        } else {
+            contactListeners.forEach {
+                it.invoke(1)
+            }
         }
     }
 
-    private fun parseBrainAndHeart(data: String) {
-        if (data.substring(6, 8) == PACKAGE_FLAG_BRAIN) {
-            parseBrain(data.substring(0, BRAIN_PACKAGE_LENGTH))
-            parseHeart(data.substring(BRAIN_PACKAGE_LENGTH, BRAIN_PACKAGE_LENGTH + HEART_PACKAGE_LENGTH))
-        } else if (data.substring(6, 8) == PACKAGE_FLAG_HEART) {
-            parseHeart(data.substring(0, HEART_PACKAGE_LENGTH))
-            parseBrain(data.substring(HEART_PACKAGE_LENGTH, BRAIN_PACKAGE_LENGTH + HEART_PACKAGE_LENGTH))
-        }
-    }
 }

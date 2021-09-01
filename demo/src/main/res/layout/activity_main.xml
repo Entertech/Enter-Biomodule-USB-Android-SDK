@@ -7,17 +7,4 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="开始采集"
-        android:onClick="onStartCollection"/>
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="停止采集"
-        android:onClick="onStopCollection"/>
-
 </LinearLayout>
