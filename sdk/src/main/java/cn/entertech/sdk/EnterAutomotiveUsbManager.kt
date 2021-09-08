@@ -230,12 +230,16 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     private fun parseBrain(data: String) {
-        var effectiveBrainData = getEffectiveBrainData(data)
-        var brainBytes = hexSringToBytes(effectiveBrainData)
-        brainDataListeners.forEach {
-            it.invoke(brainBytes)
+        try {
+            var effectiveBrainData = getEffectiveBrainData(data)
+            var brainBytes = hexSringToBytes(effectiveBrainData)
+            brainDataListeners.forEach {
+                it.invoke(brainBytes)
+            }
+            parseContact(effectiveBrainData)
+        }catch (e:Exception){
+            e.printStackTrace()
         }
-        parseContact(effectiveBrainData)
     }
 
     private fun parseContact(data:String){
