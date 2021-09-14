@@ -68,8 +68,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     companion object {
         private const val ACTION_DEVICE_PERMISSION = "actionDevicePermission"
-        private const val DEVICE_PRODUCT_ID = 60000
-        private const val DEVICE_VENDOR_ID = 4292
+        private const val DEVICE_PRODUCT_ID = 29987
+        private const val DEVICE_VENDOR_ID = 6790
         private const val BRAIN_PACKAGE_LENGTH = 7
         private const val PACKAGE_FLAG_HEAD = "E"
         private const val DATA_CONTACT_BAD = "ffffff"
@@ -137,18 +137,43 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             mUsbDeviceConnection = mUsbManager!!.openDevice(mUsbDevice)
             mUsbDeviceConnection?.claimInterface(mUsbInterface, true)
             // reset
-            mUsbDeviceConnection?.controlTransfer(0x40, 0, 0, 0, null, 0, 0)
-            // clear Rx
-            mUsbDeviceConnection?.controlTransfer(0x40, 0, 1, 0, null, 0, 0)
-            // clear Tx
-            mUsbDeviceConnection?.controlTransfer(0x40, 0, 2, 0, null, 0, 0)
+//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 0, 0, null, 0, 0)
+//            // clear Rx
+//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 1, 0, null, 0, 0)
+//            // clear Tx
+//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 2, 0, null, 0, 0)
             //Baud rate 115200
-            mUsbDeviceConnection?.controlTransfer(0x40, 0x03, 0x001A, 0, null, 0, 0)
-
+//            mUsbDeviceConnection?.controlTransfer(0x40, 0x03, 0x001A, 0, null, 0, 0)
+            configUsb(115200)
             singleThreadExecutor?.execute(dataReceiveRunnable)
         }
     }
 
+    private fun configUsb(paramInt: Int): Boolean {
+        val arrayOfByte = ByteArray(8)
+        mUsbDeviceConnection?.controlTransfer(192, 95, 0, 0, arrayOfByte, 8, 1000)
+        mUsbDeviceConnection?.controlTransfer(64, 161, 0, 0, null, 0, 1000)
+        var l1 = 1532620800 / paramInt.toLong()
+        var i = 3
+        while (true) {
+            if (l1 <= 65520L || i <= 0) {
+                val l2 = 65536L - l1
+                val j: Int = (0xFF00 and l2.toInt() or i)
+                val k: Int = (0xFF and l2.toInt())
+                mUsbDeviceConnection?.controlTransfer(64, 154, 4882, j, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 154, 3884, k, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(192, 149, 9496, 0, arrayOfByte, 8, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 154, 1304, 80, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 161, 20511, 55562, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 154, 4882, j, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 154, 3884, k, null, 0, 1000)
+                mUsbDeviceConnection?.controlTransfer(64, 164, 0, 0, null, 0, 1000)
+                return true
+            }
+            l1 = l1 shr 3
+            i--
+        }
+    }
     fun init() {
         init(null)
     }
