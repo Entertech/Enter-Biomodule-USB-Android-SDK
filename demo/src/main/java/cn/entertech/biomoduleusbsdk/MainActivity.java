@@ -13,6 +13,7 @@ import java.util.Arrays;
 import cn.entertech.sdk.Callback;
 import cn.entertech.sdk.EnterAutomotiveUsbManager;
 import kotlin.Unit;
+import kotlin.jvm.functions.Function0;
 import kotlin.jvm.functions.Function1;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +49,21 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public Unit invoke(final Integer integer) {
                 Log.d("佩戴检测：", integer + "");
+                return null;
+            }
+        });
+
+        enterAutomotiveUsbManager.addConnectListener(new Function0<Unit>() {
+            @Override
+            public Unit invoke() {
+                Log.d("连接状态",   "usb 插入");
+                return null;
+            }
+        });
+        enterAutomotiveUsbManager.addDisconnectListener(new Function0<Unit>() {
+            @Override
+            public Unit invoke() {
+                Log.d("连接状态",   "usb 拔出");
                 return null;
             }
         });

@@ -9,7 +9,7 @@ import android.hardware.usb.*
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import cn.entertech.sdk.StringUtils.*
+import cn.entertech.sdk.StringUtils.hexSringToBytes
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -27,12 +27,43 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     private val brainDataListeners = CopyOnWriteArrayList<(ByteArray) -> Unit>()
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
+    private val connectListener = CopyOnWriteArrayList<() -> Unit>()
+    private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
+
+    var mUsbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            var action = intent.action
+            if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
+                var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
+                if (device != null) {
+                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                        disconnectListener.forEach {
+                            it.invoke()
+                        }
+                    }
+                }
+            } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED == action) {
+                var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
+                if (device != null) {
+                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                        connectListener.forEach {
+                            it.invoke()
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     init {
         mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         mMainHandler = Handler(Looper.getMainLooper())
         singleThreadExecutor = Executors.newSingleThreadExecutor()
 
+        val usbDeviceStateFilter = IntentFilter()
+        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        context.registerReceiver(mUsbReceiver, usbDeviceStateFilter)
     }
 
     companion object {
@@ -160,6 +191,22 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         contactListeners.remove(listener)
     }
 
+    fun addConnectListener(listener: () -> Unit) {
+        connectListener.add(listener)
+    }
+
+    fun removeConnectListener(listener: () -> Unit) {
+        connectListener.remove(listener)
+    }
+
+    fun addDisconnectListener(listener: () -> Unit) {
+        disconnectListener.add(listener)
+    }
+
+    fun removeDisconnectListener(listener: () -> Unit) {
+        disconnectListener.remove(listener)
+    }
+
     private inner class UsbPermissionReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val action = intent.action
@@ -193,7 +240,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 0)
             if (ret > 0) {
                 var data = String(bytes)
-                var stringData = data.replace(String(ByteArray(1){0x00}),"")
+                var stringData = data.replace(String(ByteArray(1) { 0x00 }), "")
                 var stringDataArray = stringData.split("\r\n")
                 stringDataArray.forEach {
                     mMainHandler.post {
@@ -237,12 +284,12 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 it.invoke(brainBytes)
             }
             parseContact(effectiveBrainData)
-        }catch (e:Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun parseContact(data:String){
+    private fun parseContact(data: String) {
         if (data == DATA_CONTACT_BAD) {
             contactListeners.forEach {
                 it.invoke(0)
