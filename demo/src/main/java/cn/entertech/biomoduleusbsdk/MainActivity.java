@@ -24,7 +24,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         enterAutomotiveUsbManager = EnterAutomotiveUsbManager.Companion.getInstance(this);
-        enterAutomotiveUsbManager.init(new Callback() {
+        enterAutomotiveUsbManager.init(29987,6790,new Callback() {
             @Override
             public void onSuccess() {
                 Toast.makeText(MainActivity.this,"设备初始化成功",Toast.LENGTH_SHORT).show();

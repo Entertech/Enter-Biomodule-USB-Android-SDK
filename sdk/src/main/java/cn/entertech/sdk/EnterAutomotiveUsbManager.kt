@@ -24,6 +24,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var mUsbDevice: UsbDevice? = null
     private var mUsbManager: UsbManager? = null
     private var mMainHandler: Handler
+    private var mProductId: Int? = null
+    private var mVendorId: Int? = null
 
     private val brainDataListeners = CopyOnWriteArrayList<(ByteArray) -> Unit>()
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
@@ -36,7 +38,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
-                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                    if (device.productId == mProductId && device.vendorId == mVendorId) {
                         disconnectListener.forEach {
                             it.invoke()
                         }
@@ -45,7 +47,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED == action) {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
-                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                    if (device.productId == mProductId && device.vendorId == mVendorId) {
                         connectListener.forEach {
                             it.invoke()
                         }
@@ -99,7 +101,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         val localIterator = deviceList.values.iterator()
         while (localIterator.hasNext()) {
             var localUsbDevice = localIterator.next()
-            if (localUsbDevice.productId == DEVICE_PRODUCT_ID && localUsbDevice.vendorId == DEVICE_VENDOR_ID) {
+            if (localUsbDevice.productId == mProductId && localUsbDevice.vendorId == mVendorId) {
                 mUsbDevice = localUsbDevice
                 return true
             }
@@ -174,11 +176,15 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             i--
         }
     }
-    fun init() {
-        init(null)
+
+    fun init(productId: Int = 60000
+             , vendorId: Int = 4292) {
+        init(productId, vendorId, null)
     }
 
-    fun init(callback: Callback?) {
+    fun init(productId: Int = 60000, vendorId: Int = 4292, callback: Callback?) {
+        this.mProductId = productId
+        this.mVendorId = vendorId
         if (isDeviceAvailable()) {
             if (isDeviceHasPermission()) {
                 onOpenDevice()
