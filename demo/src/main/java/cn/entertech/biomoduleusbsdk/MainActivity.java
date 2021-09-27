@@ -18,6 +18,8 @@ import kotlin.jvm.functions.Function1;
 public class MainActivity extends AppCompatActivity {
 
     private EnterAutomotiveUsbManager enterAutomotiveUsbManager;
+    private Function0<Unit> connectListener;
+    private Function0<Unit> disconnectListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,19 +54,55 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        enterAutomotiveUsbManager.addConnectListener(new Function0<Unit>() {
+        connectListener = new Function0<Unit>() {
             @Override
             public Unit invoke() {
+                enterAutomotiveUsbManager.init(29987,6790,new Callback() {
+                    @Override
+                    public void onSuccess() {
+                        Toast.makeText(MainActivity.this,"设备初始化成功",Toast.LENGTH_SHORT).show();
+                        Log.d("初始化：", "设备初始化成功");
+                    }
+
+                    @Override
+                    public void onError(@NotNull String error) {
+                        Toast.makeText(MainActivity.this,"设备初始化失败",Toast.LENGTH_SHORT).show();
+                        Log.d("初始化：", "设备初始化失败：" + error);
+                    }
+                });
                 Log.d("连接状态",   "usb 插入");
                 return null;
             }
-        });
-        enterAutomotiveUsbManager.addDisconnectListener(new Function0<Unit>() {
+        };
+
+        disconnectListener =new Function0<Unit>() {
             @Override
             public Unit invoke() {
                 Log.d("连接状态",   "usb 拔出");
                 return null;
             }
-        });
+        };
+        enterAutomotiveUsbManager.addConnectListener(connectListener);
+        enterAutomotiveUsbManager.addDisconnectListener(disconnectListener);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Log.d("######","onStart");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.d("######","onStop");
+    }
+
+    @Override
+    protected void onDestroy() {
+        enterAutomotiveUsbManager.removeConnectListener(connectListener);
+        enterAutomotiveUsbManager.removeDisconnectListener(disconnectListener);
+        enterAutomotiveUsbManager.release();
+        super.onDestroy();
     }
 }

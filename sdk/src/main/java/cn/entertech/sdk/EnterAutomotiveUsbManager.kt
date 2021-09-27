@@ -1,5 +1,6 @@
 package cn.entertech.sdk
 
+import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -8,6 +9,7 @@ import android.content.IntentFilter
 import android.hardware.usb.*
 import android.os.Handler
 import android.os.Looper
+import android.support.v4.content.LocalBroadcastManager
 import android.util.Log
 import cn.entertech.sdk.StringUtils.hexSringToBytes
 import java.util.concurrent.CopyOnWriteArrayList
@@ -15,6 +17,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class EnterAutomotiveUsbManager(private var context: Context) : IManager {
+    private var usbPermissionReceiver: UsbPermissionReceiver? = null
     private var singleThreadExecutor: ExecutorService? = null
     private var mUsbDeviceConnection: UsbDeviceConnection? = null
     private var mUsbEndpointOut: UsbEndpoint? = null
@@ -26,6 +29,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var mMainHandler: Handler
     private var mProductId: Int? = null
     private var mVendorId: Int? = null
+    private var isReadData: Boolean = false
+    private var isRegisterReceiver = false
 
     private val brainDataListeners = CopyOnWriteArrayList<(ByteArray) -> Unit>()
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
@@ -39,6 +44,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
                     if (device.productId == mProductId && device.vendorId == mVendorId) {
+                        stop()
                         disconnectListener.forEach {
                             it.invoke()
                         }
@@ -61,11 +67,6 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         mMainHandler = Handler(Looper.getMainLooper())
         singleThreadExecutor = Executors.newSingleThreadExecutor()
-
-        val usbDeviceStateFilter = IntentFilter()
-        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        context.registerReceiver(mUsbReceiver, usbDeviceStateFilter)
     }
 
     companion object {
@@ -115,11 +116,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     override fun requestPermission(callback: Callback) {
         this.mPermissionCallback = callback
-        var usbPermissionReceiver = UsbPermissionReceiver()
         val intent = Intent(ACTION_DEVICE_PERMISSION)
         val mPermissionIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
-        val permissionFilter = IntentFilter(ACTION_DEVICE_PERMISSION)
-        context.registerReceiver(usbPermissionReceiver, permissionFilter)
         mUsbManager!!.requestPermission(mUsbDevice, mPermissionIntent)
     }
 
@@ -185,6 +183,10 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     fun init(productId: Int = 60000, vendorId: Int = 4292, callback: Callback?) {
         this.mProductId = productId
         this.mVendorId = vendorId
+        if (!isRegisterReceiver){
+            registerReceiver()
+            isRegisterReceiver = true
+        }
         if (isDeviceAvailable()) {
             if (isDeviceHasPermission()) {
                 onOpenDevice()
@@ -266,9 +268,10 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     private var lastPackage: String = ""
     private var dataReceiveRunnable = Runnable {
-        while (true) {
+        isReadData = true
+        while (isReadData) {
             val bytes = ByteArray(mUsbEndpointIn!!.maxPacketSize)
-            val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 0)
+            val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 100)
             if (ret > 0) {
                 var data = String(bytes)
                 var stringData = data.replace(String(ByteArray(1) { 0x00 }), "")
@@ -330,6 +333,33 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 it.invoke(1)
             }
         }
+    }
+
+    fun registerReceiver(){
+        usbPermissionReceiver = UsbPermissionReceiver()
+        val permissionFilter = IntentFilter(ACTION_DEVICE_PERMISSION)
+        context.registerReceiver(usbPermissionReceiver!!, permissionFilter)
+        val usbDeviceStateFilter = IntentFilter()
+        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+        usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        context.registerReceiver(mUsbReceiver, usbDeviceStateFilter)
+    }
+
+    fun unregisterReceiver(){
+        context.unregisterReceiver(usbPermissionReceiver!!)
+        context.unregisterReceiver(mUsbReceiver)
+        isRegisterReceiver = false
+    }
+
+    fun stop(){
+        if (isReadData){
+            isReadData = false
+        }
+    }
+
+    fun release(){
+        stop()
+        unregisterReceiver()
     }
 
 }
