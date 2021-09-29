@@ -72,8 +72,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     companion object {
         private const val ACTION_DEVICE_PERMISSION = "actionDevicePermission"
-        private const val DEVICE_PRODUCT_ID = 29987
-        private const val DEVICE_VENDOR_ID = 6790
+        private const val DEVICE_PRODUCT_ID = 60000
+        private const val DEVICE_VENDOR_ID = 4292
         private const val BRAIN_PACKAGE_LENGTH = 7
         private const val PACKAGE_FLAG_HEAD = "E"
         private const val DATA_CONTACT_BAD = "ffffff"
