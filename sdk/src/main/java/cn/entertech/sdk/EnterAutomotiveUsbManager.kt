@@ -262,7 +262,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var dataReceiveRunnable = Runnable {
         while (true) {
             val bytes = ByteArray(mUsbEndpointIn!!.maxPacketSize)
-            val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 0)
+            val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 100)
             if (ret > 0) {
                 var data = String(bytes)
                 var stringData = data.replace(String(ByteArray(1) { 0x00 }), "")
