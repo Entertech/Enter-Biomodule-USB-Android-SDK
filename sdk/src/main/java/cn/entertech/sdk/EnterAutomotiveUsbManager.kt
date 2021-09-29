@@ -64,6 +64,9 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
         usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         context.registerReceiver(mUsbReceiver, usbDeviceStateFilter)
+        val permissionFilter = IntentFilter(ACTION_DEVICE_PERMISSION)
+        var usbPermissionReceiver = UsbPermissionReceiver()
+        context.registerReceiver(usbPermissionReceiver, permissionFilter)
     }
 
     companion object {
@@ -113,11 +116,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     override fun requestPermission(callback: Callback) {
         this.mPermissionCallback = callback
-        var usbPermissionReceiver = UsbPermissionReceiver()
         val intent = Intent(ACTION_DEVICE_PERMISSION)
         val mPermissionIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
-        val permissionFilter = IntentFilter(ACTION_DEVICE_PERMISSION)
-        context.registerReceiver(usbPermissionReceiver, permissionFilter)
         mUsbManager!!.requestPermission(mUsbDevice, mPermissionIntent)
     }
 
