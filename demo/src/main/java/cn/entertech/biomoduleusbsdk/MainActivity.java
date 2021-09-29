@@ -26,7 +26,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         enterAutomotiveUsbManager = EnterAutomotiveUsbManager.Companion.getInstance(this);
-        enterAutomotiveUsbManager.init(29987,6790,new Callback() {
+        enterAutomotiveUsbManager.init(new Callback() {
             @Override
             public void onSuccess() {
                 Toast.makeText(MainActivity.this,"设备初始化成功",Toast.LENGTH_SHORT).show();
@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
         connectListener = new Function0<Unit>() {
             @Override
             public Unit invoke() {
-                enterAutomotiveUsbManager.init(29987,6790,new Callback() {
+                enterAutomotiveUsbManager.init(new Callback() {
                     @Override
                     public void onSuccess() {
                         Toast.makeText(MainActivity.this,"设备初始化成功",Toast.LENGTH_SHORT).show();
@@ -102,7 +102,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         enterAutomotiveUsbManager.removeConnectListener(connectListener);
         enterAutomotiveUsbManager.removeDisconnectListener(disconnectListener);
-        enterAutomotiveUsbManager.release();
         super.onDestroy();
     }
 }
