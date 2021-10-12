@@ -29,7 +29,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
     private val connectListener = CopyOnWriteArrayList<() -> Unit>()
     private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
-
+    var logHelper  = LogHelper
     var mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             var action = intent.action
@@ -37,6 +37,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
                     if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                        logHelper.d("usb disconnect")
                         disconnectListener.forEach {
                             it.invoke()
                         }
@@ -46,6 +47,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
                     if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                        logHelper.d("usb connect")
                         connectListener.forEach {
                             it.invoke()
                         }
@@ -59,7 +61,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         mUsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         mMainHandler = Handler(Looper.getMainLooper())
         singleThreadExecutor = Executors.newSingleThreadExecutor()
-
+        logHelper.tag = "EnterAutomotiveUsbManager"
         val usbDeviceStateFilter = IntentFilter()
         usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
         usbDeviceStateFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
@@ -92,10 +94,14 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         }
     }
 
+    fun setDebug(isDebug:Boolean){
+        logHelper.isDebug = isDebug
+    }
+
     override fun isDeviceAvailable(): Boolean {
         val deviceList = mUsbManager?.deviceList
         if (deviceList == null || deviceList.isEmpty()) {
-            Log.d("USBManager", "no device found!")
+            logHelper.d("no device found!")
             return false
         }
 
@@ -103,6 +109,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         while (localIterator.hasNext()) {
             var localUsbDevice = localIterator.next()
             if (localUsbDevice.productId == DEVICE_PRODUCT_ID && localUsbDevice.vendorId == DEVICE_VENDOR_ID) {
+                logHelper.d("find device:product id ${DEVICE_PRODUCT_ID},vendor id $DEVICE_VENDOR_ID")
                 mUsbDevice = localUsbDevice
                 return true
             }
@@ -111,10 +118,12 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     override fun isDeviceHasPermission(): Boolean {
+        logHelper.d("isDeviceHasPermission:${mUsbManager!!.hasPermission(mUsbDevice)}")
         return mUsbManager!!.hasPermission(mUsbDevice)
     }
 
     override fun requestPermission(callback: Callback) {
+        logHelper.d("requestPermission")
         this.mPermissionCallback = callback
         val intent = Intent(ACTION_DEVICE_PERMISSION)
         val mPermissionIntent = PendingIntent.getBroadcast(context, 0, intent, 0)
@@ -122,6 +131,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     override fun onOpenDevice() {
+        logHelper.d("onOpenDevice")
         mUsbInterface = mUsbDevice?.getInterface(0)
         if (mUsbInterface != null) {
             for (index in 0 until mUsbInterface!!.getEndpointCount()) {
@@ -154,6 +164,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     fun init(callback: Callback?) {
+        logHelper.d("init usb device...")
         if (isDeviceAvailable()) {
             if (isDeviceHasPermission()) {
                 onOpenDevice()
@@ -176,34 +187,42 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     override fun addBrainDataListener(listener: (ByteArray) -> Unit) {
+        logHelper.d("addBrainDataListener")
         brainDataListeners.add(listener)
     }
 
     override fun removeBrainDataListener(listener: (ByteArray) -> Unit) {
+        logHelper.d("removeBrainDataListener")
         brainDataListeners.remove(listener)
     }
 
     override fun addContactDataListener(listener: (Int) -> Unit) {
+        logHelper.d("addContactDataListener")
         contactListeners.add(listener)
     }
 
     override fun removeContactDataListener(listener: (Int) -> Unit) {
+        logHelper.d("removeContactDataListener")
         contactListeners.remove(listener)
     }
 
     fun addConnectListener(listener: () -> Unit) {
+        logHelper.d("addConnectListener")
         connectListener.add(listener)
     }
 
     fun removeConnectListener(listener: () -> Unit) {
+        logHelper.d("removeConnectListener")
         connectListener.remove(listener)
     }
 
     fun addDisconnectListener(listener: () -> Unit) {
+        logHelper.d("addDisconnectListener")
         disconnectListener.add(listener)
     }
 
     fun removeDisconnectListener(listener: () -> Unit) {
+        logHelper.d("removeDisconnectListener")
         disconnectListener.remove(listener)
     }
 
@@ -235,6 +254,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     private var lastPackage: String = ""
     private var dataReceiveRunnable = Runnable {
+        logHelper.d("read usb data")
         while (true) {
             val bytes = ByteArray(mUsbEndpointIn!!.maxPacketSize)
             val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 100)
