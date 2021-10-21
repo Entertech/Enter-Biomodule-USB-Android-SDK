@@ -22,14 +22,15 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var mUsbInterface: UsbInterface? = null
     private var mPermissionCallback: Callback? = null
     private var mUsbDevice: UsbDevice? = null
+    private var mCurrentProductId: Int? = null
+    private var mCurrentVendorId: Int? = null
     private var mUsbManager: UsbManager? = null
     private var mMainHandler: Handler
-
     private val brainDataListeners = CopyOnWriteArrayList<(ByteArray) -> Unit>()
     private val contactListeners = CopyOnWriteArrayList<(Int) -> Unit>()
     private val connectListener = CopyOnWriteArrayList<() -> Unit>()
     private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
-    var logHelper  = LogHelper
+    var logHelper = LogHelper
     var mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             var action = intent.action
@@ -75,6 +76,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         private const val ACTION_DEVICE_PERMISSION = "actionDevicePermission"
         private const val DEVICE_PRODUCT_ID = 29987
         private const val DEVICE_VENDOR_ID = 6790
+        private const val DEVICE_PRODUCT_ID_OLD = 60000
+        private const val DEVICE_VENDOR_ID_OLD = 4292
         private const val BRAIN_PACKAGE_LENGTH = 7
         private const val PACKAGE_FLAG_HEAD = "E"
         private const val DATA_CONTACT_BAD = "ffffff"
@@ -94,7 +97,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         }
     }
 
-    fun setDebug(isDebug:Boolean){
+    fun setDebug(isDebug: Boolean) {
         logHelper.isDebug = isDebug
     }
 
@@ -108,9 +111,11 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         val localIterator = deviceList.values.iterator()
         while (localIterator.hasNext()) {
             var localUsbDevice = localIterator.next()
-            if (localUsbDevice.productId == DEVICE_PRODUCT_ID && localUsbDevice.vendorId == DEVICE_VENDOR_ID) {
-                logHelper.d("find device:product id ${DEVICE_PRODUCT_ID},vendor id $DEVICE_VENDOR_ID")
+            if (isNewUsb(localUsbDevice.productId, localUsbDevice.vendorId) || isOldUsb(localUsbDevice.productId, localUsbDevice.vendorId)) {
+                logHelper.d("find device:product id ${localUsbDevice.productId},vendor id ${localUsbDevice.vendorId}")
                 mUsbDevice = localUsbDevice
+                mCurrentProductId = localUsbDevice.productId
+                mCurrentVendorId = localUsbDevice.vendorId
                 return true
             }
         }
@@ -146,18 +151,33 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             }
             mUsbDeviceConnection = mUsbManager!!.openDevice(mUsbDevice)
             mUsbDeviceConnection?.claimInterface(mUsbInterface, true)
-            // reset
-//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 0, 0, null, 0, 0)
+            if (mCurrentProductId == null || mCurrentVendorId == null) {
+                return
+            }
+            if (isNewUsb(mCurrentProductId!!, mCurrentVendorId!!)) {
+                configUsb(115200)
+            } else {
+                // reset
+                mUsbDeviceConnection?.controlTransfer(0x40, 0, 0, 0, null, 0, 0)
 //            // clear Rx
-//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 1, 0, null, 0, 0)
+                mUsbDeviceConnection?.controlTransfer(0x40, 0, 1, 0, null, 0, 0)
 //            // clear Tx
-//            mUsbDeviceConnection?.controlTransfer(0x40, 0, 2, 0, null, 0, 0)
+                mUsbDeviceConnection?.controlTransfer(0x40, 0, 2, 0, null, 0, 0)
 //            //Baud rate 115200
-//            mUsbDeviceConnection?.controlTransfer(0x40, 0x03, 0x001A, 0, null, 0, 0)
-            configUsb(115200)
+                mUsbDeviceConnection?.controlTransfer(0x40, 0x03, 0x001A, 0, null, 0, 0)
+            }
             singleThreadExecutor?.execute(dataReceiveRunnable)
         }
     }
+
+    private fun isNewUsb(productId: Int, vendorId: Int): Boolean {
+        return productId == DEVICE_PRODUCT_ID && vendorId == DEVICE_VENDOR_ID
+    }
+
+    private fun isOldUsb(productId: Int, vendorId: Int): Boolean {
+        return productId == DEVICE_PRODUCT_ID_OLD && vendorId == DEVICE_VENDOR_ID_OLD
+    }
+
     private fun configUsb(paramInt: Int): Boolean {
         val arrayOfByte = ByteArray(8)
         mUsbDeviceConnection?.controlTransfer(192, 95, 0, 0, arrayOfByte, 8, 1000)
@@ -183,6 +203,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             i--
         }
     }
+
     fun init() {
         init(null)
     }
