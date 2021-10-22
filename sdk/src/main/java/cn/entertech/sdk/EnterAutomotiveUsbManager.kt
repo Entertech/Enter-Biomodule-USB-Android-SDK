@@ -37,7 +37,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
-                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                    if (isNewUsb(device.productId, device.vendorId) || isOldUsb(device.productId, device.vendorId)) {
                         logHelper.d("usb disconnect")
                         disconnectListener.forEach {
                             it.invoke()
@@ -47,7 +47,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED == action) {
                 var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE) as UsbDevice
                 if (device != null) {
-                    if (device.productId == DEVICE_PRODUCT_ID && device.vendorId == DEVICE_VENDOR_ID) {
+                    if (isNewUsb(device.productId, device.vendorId) || isOldUsb(device.productId, device.vendorId)) {
                         logHelper.d("usb connect")
                         connectListener.forEach {
                             it.invoke()
