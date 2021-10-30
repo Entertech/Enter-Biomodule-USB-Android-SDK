@@ -31,6 +31,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private val connectListener = CopyOnWriteArrayList<() -> Unit>()
     private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
     var logHelper = LogHelper
+    @Volatile var isReadData = false
     var mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             var action = intent.action
@@ -39,6 +40,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 if (device != null) {
                     if (isNewUsb(device.productId, device.vendorId) || isOldUsb(device.productId, device.vendorId)) {
                         logHelper.d("usb disconnect")
+                        stop()
                         disconnectListener.forEach {
                             it.invoke()
                         }
@@ -166,7 +168,6 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 //            //Baud rate 115200
                 mUsbDeviceConnection?.controlTransfer(0x40, 0x03, 0x001A, 0, null, 0, 0)
             }
-            singleThreadExecutor?.execute(dataReceiveRunnable)
         }
     }
 
@@ -300,7 +301,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private var lastPackage: String = ""
     private var dataReceiveRunnable = Runnable {
         logHelper.d("read usb data")
-        while (true) {
+        while (isReadData) {
             val bytes = ByteArray(mUsbEndpointIn!!.maxPacketSize)
             val ret = mUsbDeviceConnection!!.bulkTransfer(mUsbEndpointIn, bytes, bytes.size, 100)
             if (ret > 0) {
@@ -364,6 +365,17 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 it.invoke(1)
             }
         }
+    }
+
+    @Synchronized
+    fun start(){
+        isReadData = true
+        singleThreadExecutor?.execute(dataReceiveRunnable)
+    }
+
+    @Synchronized
+    fun stop(){
+        isReadData = false
     }
 
 }
