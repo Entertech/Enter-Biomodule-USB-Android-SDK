@@ -31,7 +31,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private val connectListener = CopyOnWriteArrayList<() -> Unit>()
     private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
     var logHelper = LogHelper
-    @Volatile var isReadData = false
+    @Volatile
+    var isReadData = false
     var mUsbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             var action = intent.action
@@ -309,7 +310,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 var stringData = data.replace(String(ByteArray(1) { 0x00 }), "")
                 var stringDataArray = stringData.split("\r\n")
                 stringDataArray.forEach {
-                    mMainHandler.post {
+//                    mMainHandler.post {
                         //解析一个包正好是一个脑波数据包
                         if (it.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(it)) {
                             parseBrain(it)
@@ -325,7 +326,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                                     parseBrain(finalString)
                                 }
                             }
-                        }
+//                        }
                     }
                 }
 
@@ -368,14 +369,15 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     }
 
     @Synchronized
-    fun start(){
+    fun start() {
         isReadData = true
         singleThreadExecutor?.execute(dataReceiveRunnable)
     }
 
     @Synchronized
-    fun stop(){
+    fun stop() {
         isReadData = false
+        singleThreadExecutor?.shutdownNow()
     }
 
 }
