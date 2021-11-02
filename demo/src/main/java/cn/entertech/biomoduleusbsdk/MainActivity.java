@@ -26,9 +26,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         enterAutomotiveUsbManager = EnterAutomotiveUsbManager.Companion.getInstance(this);
+        enterAutomotiveUsbManager.setDebug(true);
         enterAutomotiveUsbManager.init(new Callback() {
             @Override
             public void onSuccess() {
+                enterAutomotiveUsbManager.start();
                 Toast.makeText(MainActivity.this,"设备初始化成功",Toast.LENGTH_SHORT).show();
                 Log.d("初始化：", "设备初始化成功");
             }
@@ -100,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        enterAutomotiveUsbManager.stop();
         enterAutomotiveUsbManager.removeConnectListener(connectListener);
         enterAutomotiveUsbManager.removeDisconnectListener(disconnectListener);
         super.onDestroy();

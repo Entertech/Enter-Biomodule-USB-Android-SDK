@@ -31,6 +31,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private val connectListener = CopyOnWriteArrayList<() -> Unit>()
     private val disconnectListener = CopyOnWriteArrayList<() -> Unit>()
     var logHelper = LogHelper
+
     @Volatile
     var isReadData = false
     var mUsbReceiver = object : BroadcastReceiver() {
@@ -311,21 +312,21 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
                 var stringDataArray = stringData.split("\r\n")
                 stringDataArray.forEach {
 //                    mMainHandler.post {
-                        //解析一个包正好是一个脑波数据包
-                        if (it.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(it)) {
-                            parseBrain(it)
-                        }
-                        //解析一个数据包被分割的情况
-                        if (it.length < BRAIN_PACKAGE_LENGTH) {
-                            if (lastPackage == "") {
-                                lastPackage = it
-                            } else {
-                                var finalString = lastPackage + it
-                                lastPackage = ""
-                                if (finalString.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(finalString)) {
-                                    parseBrain(finalString)
-                                }
+                    //解析一个包正好是一个脑波数据包
+                    if (it.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(it)) {
+                        parseBrain(it)
+                    }
+                    //解析一个数据包被分割的情况
+                    if (it.length < BRAIN_PACKAGE_LENGTH) {
+                        if (lastPackage == "") {
+                            lastPackage = it
+                        } else {
+                            var finalString = lastPackage + it
+                            lastPackage = ""
+                            if (finalString.length == BRAIN_PACKAGE_LENGTH && isHeadCorrect(finalString)) {
+                                parseBrain(finalString)
                             }
+                        }
 //                        }
                     }
                 }
@@ -356,14 +357,28 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
         }
     }
 
+    private var contactDataBuffer = CopyOnWriteArrayList<String>()
     private fun parseContact(data: String) {
-        if (data == DATA_CONTACT_BAD) {
-            contactListeners.forEach {
-                it.invoke(0)
+        var isContactGood = true
+        contactDataBuffer.add(data)
+        if (contactDataBuffer.size > 5) {
+            for (i in 0 until contactDataBuffer.size - 5) {
+                contactDataBuffer.removeAt(0)
             }
-        } else {
-            contactListeners.forEach {
-                it.invoke(1)
+            for (data in contactDataBuffer) {
+                if (data == DATA_CONTACT_BAD) {
+                    isContactGood = false
+                    break
+                }
+            }
+            if (isContactGood) {
+                contactListeners.forEach {
+                    it.invoke(1)
+                }
+            } else {
+                contactListeners.forEach {
+                    it.invoke(0)
+                }
             }
         }
     }
