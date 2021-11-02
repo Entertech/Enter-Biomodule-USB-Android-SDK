@@ -392,7 +392,6 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     @Synchronized
     fun stop() {
         isReadData = false
-        singleThreadExecutor?.shutdownNow()
     }
 
 }
