@@ -361,8 +361,8 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     private fun parseContact(data: String) {
         var isContactGood = true
         contactDataBuffer.add(data)
-        if (contactDataBuffer.size > 5) {
-            for (i in 0 until contactDataBuffer.size - 5) {
+        if (contactDataBuffer.size > 12) {
+            for (i in 0 until contactDataBuffer.size - 12) {
                 contactDataBuffer.removeAt(0)
             }
             for (data in contactDataBuffer) {
