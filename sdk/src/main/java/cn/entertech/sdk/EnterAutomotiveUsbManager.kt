@@ -385,6 +385,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
 
     @Synchronized
     fun start() {
+        contactDataBuffer.clear()
         isReadData = true
         singleThreadExecutor?.execute(dataReceiveRunnable)
     }
@@ -392,6 +393,7 @@ class EnterAutomotiveUsbManager(private var context: Context) : IManager {
     @Synchronized
     fun stop() {
         isReadData = false
+        contactDataBuffer.clear()
     }
 
 }
